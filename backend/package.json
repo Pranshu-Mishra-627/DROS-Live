@@ -1,0 +1,20 @@
+{
+  "name": "dros-backend",
+  "version": "1.0.0",
+  "description": "Disaster Resource Optimization System (DROS) backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "pg": "^8.16.3",
+    "twilio": "^5.12.1"
+  }
+}

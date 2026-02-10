@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DROS — Disaster Resource Optimization System</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-brand">
+      <span class="logo-icon">◇</span>
+      <h1 class="title">DROS</h1>
+      <span class="tagline">Disaster Resource Optimization System</span>
+    </div>
+    <div class="header-controls">
+      <div class="control-group mode-toggle-group">
+        <label class="control-label">Mode</label>
+        <div class="toggle-switch">
+          <input type="checkbox" id="viewModeToggle" />
+          <label for="viewModeToggle">
+            <span class="toggle-label-left">DRA</span>
+            <span class="toggle-label-right">CA</span>
+          </label>
+        </div>
+      </div>
+      <div class="control-group edit-toggle-group">
+        <label class="control-label">Edit Mode</label>
+        <div class="toggle-switch">
+          <input type="checkbox" id="editModeToggle" checked />
+          <label for="editModeToggle">
+            <span class="toggle-label-left">View</span>
+            <span class="toggle-label-right">Edit</span>
+          </label>
+        </div>
+      </div>
+      <div class="control-group severity-group">
+        <label class="control-label">Severity <span id="severityValue">3</span>/5</label>
+        <input type="range" id="severity" class="slider" min="1" max="5" value="3" />
+      </div>
+      <button type="button" id="runOptimization" class="btn btn-primary">Run optimization</button>
+      <button type="button" id="sendSmsBtn" class="btn btn-primary" style="display: none;">Send SMS alerts</button>
+      <button type="button" id="clearBtn" class="btn btn-ghost">Clear all</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <h2 class="sidebar-title">Dashboard</h2>
+        <button type="button" id="toggleDashboard" class="btn-toggle" title="Collapse/Expand">−</button>
+      </div>
+      <div class="sidebar-content" id="sidebarContent">
+        <section class="panel">
+          <div class="panel-header-collapsible">
+            <h2 class="panel-title">Live data</h2>
+            <button type="button" class="btn-toggle-small" data-target="liveDataContent">−</button>
+          </div>
+          <div id="liveDataContent" class="panel-content-collapsible">
+            <p class="panel-hint">Hospitals & resources from API (refreshed in real time)</p>
+            <div class="stats-grid">
+              <div class="stat">
+                <span class="stat-value" id="statHospitals">0</span>
+                <span class="stat-label">Hospitals</span>
+              </div>
+              <div class="stat">
+                <span class="stat-value" id="statBeds">0</span>
+                <span class="stat-label">Beds</span>
+              </div>
+              <div class="stat">
+                <span class="stat-value" id="statAmbulances">0</span>
+                <span class="stat-label">Ambulances</span>
+              </div>
+              <div class="stat">
+                <span class="stat-value" id="statFood">0</span>
+                <span class="stat-label">Food (meals)</span>
+              </div>
+              <div class="stat">
+                <span class="stat-value" id="statTeams">0</span>
+                <span class="stat-label">Rescue teams</span>
+              </div>
+              <div class="stat stat-full">
+                <span class="stat-value" id="statDisasters">0</span>
+                <span class="stat-label">Active disasters</span>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-header-collapsible">
+            <h2 class="panel-title">Active disasters</h2>
+            <button type="button" class="btn-toggle-small" data-target="disastersContent">−</button>
+          </div>
+          <div id="disastersContent" class="panel-content-collapsible">
+            <p class="panel-hint">Click on the map to add; click marker to remove</p>
+            <ul id="activeDisastersList" class="disaster-list"></ul>
+          </div>
+        </section>
+        <section class="panel layers-panel" id="layersPanelRisk">
+          <h2 class="panel-title">Layers</h2>
+          <label class="checkbox-label"><input type="checkbox" id="layerHospitals" checked /> Hospitals</label>
+          <label class="checkbox-label"><input type="checkbox" id="layerResources" checked /> Resources</label>
+          <label class="checkbox-label"><input type="checkbox" id="layerAllocation" checked /> Allocations</label>
+        </section>
+        <section class="panel panel-hint" id="commModeHint" style="display: none;">
+          <p class="panel-hint">Towers show broadcast zones. Hover for alert preview. Run optimization for ETA & food.</p>
+        </section>
+        <section id="optimizationResults" class="panel optimization-panel">
+          <h2 class="panel-title">Optimization results</h2>
+          <p class="summary-stats">
+            Population at risk: <strong id="populationAtRisk">0</strong><br>
+            People served: <strong id="totalPeopleServed">0</strong><br>
+            Lives saved (est.): <strong id="totalLivesSaved">0</strong>
+          </p>
+          <p class="panel-hint">Lives saved ≤ people served; effectiveness scales with severity and response time.</p>
+          <div id="optimizationResultsList" class="optimization-list"></div>
+        </section>
+      </div>
+    </aside>
+    <div class="map-wrap">
+      <div id="map" class="map"></div>
+      <div class="map-legend">
+        <div class="legend-section">
+          <strong>Map Layers</strong>
+          <span><i class="legend-dot hospitals"></i> Hospitals</span>
+          <span><i class="legend-dot resources"></i> Resources</span>
+        </div>
+        <div class="legend-section" id="legendAllocation">
+          <strong>Allocation Lines</strong>
+          <span><i class="legend-line" style="background: #22c55e;"></i> Ambulances</span>
+          <span><i class="legend-line" style="background: #eab308;"></i> Rescue Teams</span>
+          <span><i class="legend-line" style="background: #f97316;"></i> Food</span>
+          <span><i class="legend-line" style="background: #8b5cf6; border-style: dashed;"></i> Helicopters</span>
+        </div>
+        <div class="legend-section">
+          <strong>Risk Zones</strong>
+          <span><i class="legend-zone" style="background: rgba(239,68,68,0.7);"></i> High Risk</span>
+          <span><i class="legend-zone" style="background: rgba(249,115,22,0.4);"></i> Medium Risk</span>
+          <span><i class="legend-zone" style="background: rgba(234,179,8,0.15); border-style: dashed;"></i> Low Risk</span>
+        </div>
+      </div>
+      <div class="disaster-selector" id="disasterSelector">
+        <div class="disaster-selector-title">Disaster Type</div>
+        <div class="disaster-selector-items" id="disasterSelectorItems"></div>
+      </div>
+    </div>
+  </main>
+
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // Auto-detect environment: use production backend if on GitHub Pages, localhost if local
+    const isProduction = window.location.hostname !== 'localhost' && 
+                         window.location.hostname !== '127.0.0.1' &&
+                         !window.location.hostname.includes('192.168.');
+    
+    // TODO: Replace with your actual backend URL after deploying
+    window.DROS_API_BASE = isProduction 
+      ? "https://your-backend-url.railway.app/api"  // Update this!
+      : "http://localhost:3001/api";
+  </script>
+  
+  <script src="app.js"></script>
+</body>
+</html>
